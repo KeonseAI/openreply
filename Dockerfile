@@ -53,7 +53,10 @@ COPY --from=build /app/tsconfig.json ./tsconfig.json
 COPY --from=build /app/package.json ./package.json
 
 EXPOSE 3000
-# Default to the web process — the worker service overrides this with
-# `command: ["npm", "run", "worker"]` in whatever compose/stack file deploys
-# it (see openreply-vps.stack.yml in EvolutionAPI/omni-nexus for an example).
-CMD ["npm", "run", "start"]
+# KEONSE deployment: the web app runs on Vercel, so this image is only ever
+# started as the worker. Railway builds from this Dockerfile and honours its
+# CMD, and its Custom Start Command field is the only other way to override it
+# — defaulting to the worker here removes that dashboard step entirely.
+# Upstream defaults to `npm run start` (the web process) because its reference
+# stack runs both processes from this one image.
+CMD ["npm", "run", "worker"]
