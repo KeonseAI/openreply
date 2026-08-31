@@ -23,6 +23,9 @@
  * Optional:
  *   --public-reply "<text>"   also post a visible reply under the comment
  *   --dm-trigger              also fire on inbound DMs / Story replies
+ *   --require-follow          ask for a follow before revealing the message
+ *   --follow-prompt "<text>"  what the follow request says
+ *   --follow-button "<label>" label of the button that re-checks the follow
  *   --partial-match           match keywords inside longer words
  *   --inactive                create the campaign switched off
  *   --dry-run                 print what would be created, write nothing
@@ -87,6 +90,17 @@ async function main() {
 
   const publicReplyMessage = typeof args["public-reply"] === "string" ? args["public-reply"].trim() : null;
 
+  const followPromptMessage = typeof args["follow-prompt"] === "string" ? args["follow-prompt"].trim() : null;
+  const followPromptButtonLabel = typeof args["follow-button"] === "string" ? args["follow-button"].trim() : null;
+  const requireFollow = args["require-follow"] === true;
+
+  // The prompt texts are only ever read when the gate is on. Accepting them
+  // without it would silently do nothing, which reads as a working follow gate
+  // to whoever set it up.
+  if (!requireFollow && (followPromptMessage || followPromptButtonLabel)) {
+    throw new Error("--follow-prompt / --follow-button require --require-follow");
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error("DATABASE_URL environment variable is required");
@@ -121,6 +135,9 @@ async function main() {
       publicReplyEnabled: publicReplyMessage !== null,
       publicReplyMessage,
       publicReplyMessages: publicReplyMessage ? [publicReplyMessage] : [],
+      requireFollow,
+      followPromptMessage,
+      followPromptButtonLabel,
       isActive: args.inactive !== true,
     };
 
@@ -136,6 +153,9 @@ async function main() {
     console.log(`account: @${account.username}`);
     console.log(`keywords: ${keywords.join(", ")}${data.wholeWordMatch ? " (whole word)" : " (partial match)"}`);
     console.log(`target: ${postId ? `post ${postId}` : matchAnyPost ? "any post" : "next reel published"}`);
+    if (requireFollow) {
+      console.log("follow gate: on — non-followers get the prompt first, confirmed followers get the message straight away");
+    }
   } finally {
     await prisma.$disconnect();
   }
